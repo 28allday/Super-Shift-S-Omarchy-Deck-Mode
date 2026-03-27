@@ -1,5 +1,10 @@
 # Super Shift S - Omarchy Deck Mode
 
+Install video 
+
+https://youtu.be/x4Amx2xlyUw
+
+
 **Version 12.27**
 
 Turn any Arch Linux + Hyprland desktop into a Steam Deck-like gaming console with a single keybind. Press `Super+Shift+S` to enter Gaming Mode (Steam Big Picture in Gamescope), and `Super+Shift+R` to return to your desktop.
