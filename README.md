@@ -2,7 +2,11 @@
 
 Install video 
 
-https://youtu.be/x4Amx2xlyUw
+<p align="center">
+  <a href="https://youtu.be/x4Amx2xlyUw">
+    <img src="https://img.youtube.com/vi/x4Amx2xlyUw/0.jpg" width="700">
+  </a>
+</p>
 
 
 **Version 12.27**
