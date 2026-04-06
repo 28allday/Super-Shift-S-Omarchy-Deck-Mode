@@ -37,7 +37,7 @@ Switching between modes is seamless - SDDM handles session transitions, and all 
 ## Quick Start
 
 ```bash
-git clone https://github.com/28allday/Super-Shift-S-Omarchy-Deck-Mode.git
+git clone https://git.no-signal.uk/nosignal/Super-Shift-S-Omarchy-Deck-Mode.git
 cd Super-Shift-S-Omarchy-Deck-Mode
 chmod +x Super_shift_S_release.sh
 ./Super_shift_S_release.sh
