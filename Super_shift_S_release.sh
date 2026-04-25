@@ -1520,6 +1520,9 @@ setup_session_switching() {
   # cooperate instead of fighting. If systemd-networkd is also running, we
   # tell NM to leave ethernet interfaces alone to avoid conflicts.
   info "Setting up NetworkManager integration..."
+	if systemctl is-active --quiet NetworkManger; then
+		echo "Network Manager already in use, no need to setup switching";
+	else
   if systemctl is-active --quiet iwd; then
     info "Detected iwd is active - configuring NetworkManager to use iwd backend..."
     sudo mkdir -p /etc/NetworkManager/conf.d
@@ -1637,7 +1640,7 @@ fi
 NM_STOP
   sudo chmod +x "$nm_stop_script"
   info "Created NetworkManager start/stop scripts"
-
+fi
   # Steam Library Auto-Mount Daemon
   #
   # Many gamers have games spread across multiple drives (external SSDs,
