@@ -20,10 +20,14 @@
 # The script is idempotent — running it again skips steps that are already done.
 # ==============================================================================
 
-set -Euo pipefail
+set -Eeuo pipefail
+
 # -E: ERR traps are inherited by functions, command substitutions, and subshells
+# -e: exit on any non-zero status ( such as pressing ^C)
 # -u: Treat unset variables as errors (catches typos in variable names)
 # -o pipefail: A pipeline fails if ANY command in it fails, not just the last one
+
+trap 'echo "Installation Cancelled"; exit 130' INT
 
 Super_Shift_S_VERSION="12.27"
 
