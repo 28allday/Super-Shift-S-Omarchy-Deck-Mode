@@ -25,7 +25,7 @@ set -Euo pipefail
 # -u: Treat unset variables as errors (catches typos in variable names)
 # -o pipefail: A pipeline fails if ANY command in it fails, not just the last one
 
-Super_Shift_S_VERSION="12.27"
+Super_Shift_S_VERSION="12.28"
 
 # Load configuration from /etc/gaming-mode.conf (system-wide) or
 # ~/.gaming-mode.conf (user override). This lets users disable performance
@@ -1934,6 +1934,7 @@ NVIDIA_WRAPPER
   #   - Kills the mount daemon and keybind monitor
   #   - Stops NetworkManager and restores iwd WiFi
   #   - Restores balanced power mode (CPU powersave, GPU defaults)
+  #   - Unmasks suspend targets as a fail-safe
   #   - Removes the session marker file
   info "Creating NetworkManager session wrapper..."
   local nm_wrapper="/usr/local/bin/gamescope-session-nm-wrapper"
@@ -2027,9 +2028,23 @@ cleanup() {
     pkill -f gaming-keybind-monitor 2>/dev/null || true
     sudo -n /usr/local/bin/gamescope-nm-stop 2>/dev/null || true
     restore_balanced_mode
+    if sudo -n systemctl unmask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null; then
+        log "Suspend targets unmasked"
+    else
+        log "WARNING: Could not unmask suspend targets"
+    fi
     rm -f /tmp/.gaming-session-active
 }
 trap cleanup EXIT INT TERM
+
+# The switch script masks sleep only to protect the SDDM transition. Restore it
+# as soon as Gaming Mode starts so an abnormal session exit cannot leave the
+# laptop unable to suspend.
+if sudo -n systemctl unmask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null; then
+    log "Suspend targets restored after Gaming Mode transition"
+else
+    log "WARNING: Could not restore suspend targets after Gaming Mode transition"
+fi
 
 # Enable performance mode immediately on session start
 enable_performance_mode
@@ -2120,6 +2135,10 @@ SESSION_DESKTOP
 
   sudo tee "$os_session_select" > /dev/null << 'OS_SESSION_SELECT'
 #!/bin/bash
+# Restore suspend before removing the marker or restarting SDDM. The session
+# cleanup trap repeats this operation, making Steam's exit path fail-safe.
+sudo -n systemctl unmask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null || \
+  logger -t gaming-mode "WARNING: Steam exit could not unmask suspend targets"
 rm -f /tmp/.gaming-session-active
 sudo -n /usr/local/bin/gaming-session-switch desktop 2>/dev/null || {
   echo "Warning: Failed to update session config"
@@ -2179,12 +2198,16 @@ SWITCH_SCRIPT
 
   sudo tee "$switch_desktop_script" > /dev/null << 'SWITCH_DESKTOP'
 #!/bin/bash
+# Always restore suspend, even if another exit handler already removed the
+# gaming-session marker. This command is safe to repeat.
+sudo -n systemctl unmask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null || \
+  logger -t gaming-mode "WARNING: Desktop switch could not unmask suspend targets"
+
 if [[ ! -f /tmp/.gaming-session-active ]]; then
   exit 0
 fi
 rm -f /tmp/.gaming-session-active
 
-sudo -n systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null
 sudo -n /usr/local/bin/gaming-session-switch desktop 2>/dev/null || true
 
 # Re-enable Bluetooth
@@ -2410,7 +2433,7 @@ SESSION_HELPER
 %video ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart sddm
 %video ALL=(ALL) NOPASSWD: /usr/bin/chvt
 %video ALL=(ALL) NOPASSWD: /usr/bin/systemctl mask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target
-%video ALL=(ALL) NOPASSWD: /usr/bin/systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target
+%video ALL=(ALL) NOPASSWD: /usr/bin/systemctl unmask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl start NetworkManager.service
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop NetworkManager.service
 %video ALL=(ALL) NOPASSWD: /usr/bin/systemctl start bluetooth.service
@@ -2768,6 +2791,30 @@ verify_installation() {
   echo "  iwd:            $(systemctl is-active iwd.service 2>/dev/null || echo 'inactive')"
   echo "  systemd-networkd: $(systemctl is-active systemd-networkd.service 2>/dev/null || echo 'inactive')"
   echo "  polkit:         $(systemctl is-active polkit.service 2>/dev/null || echo 'inactive')"
+
+  echo ""
+  echo "  SUSPEND SAFETY:"
+  echo "  ---------------"
+  if [[ -f /tmp/.gaming-session-active ]]; then
+    echo "  - Gaming Mode session marker is active; suspend target check deferred"
+  else
+    local suspend_target suspend_state
+    local suspend_targets_ok=true
+    for suspend_target in sleep.target suspend.target hibernate.target hybrid-sleep.target; do
+      suspend_state=$(systemctl show --property=LoadState --value "$suspend_target" 2>/dev/null || echo "unknown")
+      if [[ "$suspend_state" == "masked" ]]; then
+        echo "  ✗ $suspend_target is masked; lid-close suspend may fail"
+        suspend_targets_ok=false
+        all_ok=false
+      else
+        echo "  ✓ $suspend_target is not masked"
+      fi
+    done
+    if ! $suspend_targets_ok; then
+      echo "    Repair with:"
+      echo "    sudo systemctl unmask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target"
+    fi
+  fi
 
   echo ""
   echo "  SUDO PERMISSIONS TEST:"
