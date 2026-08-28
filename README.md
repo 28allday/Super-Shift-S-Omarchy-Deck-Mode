@@ -9,7 +9,7 @@ Install video
 </p>
 
 
-**Version 12.27**
+**Version 12.28**
 
 Turn any Arch Linux + Hyprland desktop into a Steam Deck-like gaming console with a single keybind. Press `Super+Shift+S` to enter Gaming Mode (Steam Big Picture in Gamescope), and `Super+Shift+R` to return to your desktop.
 
@@ -161,13 +161,14 @@ Desktop Mode (Hyprland)
 Gaming Mode (Gamescope + Steam Big Picture)
     │
     ├─ On session start (gamescope-session-nm-wrapper):
+    │   ├─ Unmasks suspend targets after the SDDM transition
     │   ├─ Enables performance mode (CPU governor, GPU tuning)
     │   ├─ Starts NetworkManager (for Steam network access)
     │   ├─ Launches steam-library-mount (external drive detection)
     │   ├─ Starts gaming-keybind-monitor (Super+Shift+R listener)
     │   └─ Launches gamescope-session-plus with Steam
     │
-    ├─ Super+Shift+R pressed (or Steam > Exit to Desktop)
+    ├─ Super+Shift+R pressed
     │   └─ switch-to-desktop runs:
     │       ├─ Unmasks suspend targets
     │       ├─ Restores Bluetooth
@@ -176,7 +177,14 @@ Gaming Mode (Gamescope + Steam Big Picture)
     │       ├─ Updates SDDM config to Hyprland session
     │       └─ Restarts SDDM → boots into Desktop Mode
     │
+    ├─ Steam > Exit to Desktop
+    │   └─ os-session-select runs:
+    │       ├─ Unmasks suspend targets before removing the session marker
+    │       ├─ Updates SDDM config to Hyprland session
+    │       └─ Restarts SDDM → boots into Desktop Mode
+    │
     └─ On session cleanup (trap handler):
+        ├─ Unmasks suspend targets again as a fail-safe
         ├─ Kills steam-library-mount and keybind-monitor
         ├─ Stops NetworkManager, restores iwd WiFi
         └─ Restores balanced power mode
@@ -307,6 +315,11 @@ Run the built-in verification to check all files, permissions, packages, and ser
 - Ensure user is in `input` group: `groups | grep input`
 - Check keybind monitor: `journalctl -t gaming-keybind-monitor -n 20`
 - Fallback: Use Steam > Power > Exit to Desktop
+
+**Laptop will not suspend after leaving Gaming Mode**
+- Check the targets: `systemctl show -p LoadState sleep.target suspend.target hibernate.target hybrid-sleep.target`
+- Repair the current boot: `sudo systemctl unmask --runtime sleep.target suspend.target hibernate.target hybrid-sleep.target`
+- Re-run the installer to update all Gaming Mode exit paths with the suspend restoration fail-safe
 
 **External drives not mounting**
 - Ensure `udisks2` is installed: `pacman -Qi udisks2`
