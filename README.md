@@ -1,5 +1,25 @@
 # Super Shift S - Omarchy Deck Mode
 
+> ## ⚠️ This project is no longer maintained
+>
+> **Superseded by [DeckShift](https://github.com/28allday/deckshift)**, which is
+> where all development continues. DeckShift is the same idea rebuilt: a control
+> panel for monitor, resolution/refresh rate and GPU mode instead of guesswork,
+> proper support for hybrid laptops (`[hybrid-nvidia]` / `[hybrid-amd]` PRIME
+> offload), an uninstaller, and opt-in session logs.
+>
+> ```bash
+> git clone https://github.com/28allday/deckshift.git
+> cd deckshift
+> chmod +x deckshift.sh
+> ./deckshift.sh
+> ```
+>
+> The script here is left up for reference. It will not receive fixes, and open
+> issues and pull requests have been closed as superseded rather than rejected.
+> If you hit a problem, please report it against DeckShift.
+
+
 Install video 
 
 <p align="center">
